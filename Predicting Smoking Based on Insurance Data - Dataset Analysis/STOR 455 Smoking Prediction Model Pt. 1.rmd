@@ -1,0 +1,253 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+#Authors: Julie Bonds, Rina Deka
+
+#STOR 455 Homework Assignment 6, UNC-Chapel Hill Spring 2020
+
+#~Sources~ 
+#Link to data: https://www.kaggle.com/mirichoi0218/insurance
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(car)
+library(mosaic)
+library(Stat2Data)
+library(dplyr)
+library(ggplot2)
+library(bestglm)
+library(tidyverse)
+```
+
+```{r}
+insurance <- read_csv("~/STOR 455 McLean/STOR 455/STOR  455 Data/insurance.csv")
+View(insurance)
+
+```
+
+
+
+
+```{r}
+Insurance <- insurance %>% transmute(age, sex=ifelse(sex=="male",0,1), bmi, children, smoker=ifelse(smoker=="no",0,1),region, charges)
+#1=Female, 0=male
+#1=Yes=Smoker, 0=No=Non-smoker
+data(Insurance)
+head(Insurance)
+
+```
+
+```{r}
+
+
+#(a1)
+#Choose a single quantitative predictor and construct a logistic regression model
+
+mod11 <- glm(smoker~charges, data = Insurance, family = "binomial")
+
+```
+
+
+```{r}
+
+#(b1)
+#(b) Plot the raw data and the logistic curve on the same axes.
+
+
+logit = function(B0, B1, x)
+  {
+    exp(B0+B1*x)/(1+exp(B0+B1*x))
+  }
+
+
+B0 = summary(mod11)$coef[1]
+B1 = summary(mod11)$coef[2]
+
+
+
+plot(smoker~charges,data=Insurance)
+curve(logit(B0, B1, x),add=TRUE, col="red")
+
+plot(jitter(smoker, amount = 0.1)~charges,data=Insurance)
+curve(logit(B0, B1, x),add=TRUE, col="red")
+```
+
+
+```{r}
+#(c1)
+# Construct an empirical logit plot and comment on the linearity of the data
+library(car)
+for(j in 5:20){emplogitplot1(smoker~charges, data=Insurance, ngroups=j, main=j)}
+```
+**In general, our data does not appear to follow a linear trend. The data points don't hug the blue line very well, and the almost look like they follow an expotential pattern .**
+
+```{r}
+#(d1)
+#Use the summary of your logistic model to perform a hypothesis test to determine if there is significant evidence of a relationship between the response and predictor variable. State your hypotheses and conclusion.
+
+
+summary(mod11)
+```
+**The null hypothesis states that smoking has no effect and no relationship with insurance charges (cost). The alternative hypothesis states that smoking does have a correlation with increased insurance charges. Since our p-values are basically 0 (>0.05), we can reject the null hypothesis and that there is sufficient evidence to accept the alternative hypothesis.**
+
+*Furthermore, our null deviance was found to be quite high while our residual deviance was lower. The null model is an (intercept-only) model, and since our deviance was quite high, it is appropriate to use more than a single parameter to fit the model. However, the residual deviance being relatively low indicates that our trained model is apporiate. Therefore, we can be assured that our model is justified.*
+
+```{r}
+#(e1)
+#SE_B1 = summary(mod11)$coef[2,2]
+#exp(B1 - SE_B1*qnorm(0.975))
+#exp(B1 + SE_B1*qnorm(0.975))
+
+
+exp(confint(mod11))
+```
+
+**With 95% confidence, our confidence interval for the odd ratio of our data is between 1.000222 and 1.000285. The fact that both values are greater than 1 indicates that the odds of someone being a smoker are going up as charges goes up. 95% confidence, for each additional unit(dollars) that charges goes up, the likelihood that the person smokes increases by a factor of 1.000222 and 1.000285.  
+```{r}
+#(f1)
+
+anova(mod11, test="Chisq")
+
+
+
+```
+***P-value is <2.2e-16, much less than 0.05/basically 0, so we can reject the null hypothesis and accept the alternative hypothesis that there is a relationship with smoking against insurance charges.** 
+
+#(G) Part 2: Different predictor
+```{r}
+#(a2)
+
+mod22 <- glm(smoker~bmi, data = Insurance, family = "binomial")
+```
+
+```{r}
+#(b2)
+
+logit = function(b0, b1, x)
+  {
+    exp(B0+B1*x)/(1+exp(b0+b1*x))
+  }
+
+
+b0 = summary(mod22)$coef[1]
+b1 = summary(mod22)$coef[2]
+
+
+
+plot(smoker~bmi,data=Insurance)
+curve(logit(b0, b1, x),add=TRUE, col="red")
+
+plot(jitter(smoker, amount = 0.1)~bmi,data=Insurance)
+curve(logit(b0, b1, x),add=TRUE, col="red")
+```
+
+```{r}
+#(c2)
+for(j in 5:20){emplogitplot1(smoker~bmi, data=Insurance, ngroups=j, main=j)}
+```
+**In general, we see a relatively more linear pattern with smoking and BMI, but we are also seeing a significant amount of departure from the line so not quite a linear trend.*
+
+```{r}
+#(d2)
+
+summary(mod22)
+```
+***Our p-values here are quite high, much higher than 0.05, so we must accept the null hypothesis that smoking has no relationship with BMI and reject the alternative hypothesis that smoking does have a correlation with BMI. ***
+
+
+
+```{r}
+#(e2)
+SE_B1 = summary(mod22)$coef[2,2]
+exp(B1 - SE_B1*qnorm(0.975))
+exp(B1 + SE_B1*qnorm(0.975))
+
+
+exp(confint(mod22))
+```
+
+With 95% confidence, our confidence interval for the odd ratio of our data is between 0.9799617 and 1.0235619. The fact that the values straddle 1 indicates that we cannot tell whether the odds of someone being a smoker are going up or down.95% confidence, for each additional unit(dollars) that charges goes up, the likelihood that the person smokes increases by a factor of 0.978718 and 1.022263.  
+
+```{r}
+#(f2)
+
+anova(mod22, test="Chisq")
+```
+***P-value of smokers against BMI = 0.8909***
+*Greater than 0.05, so we can accept the null hypothesis that there is no significant relationship between smoking and BMI*. 
+
+#Part H)
+```{r}
+# Compare the effectiveness of your two models to each other.
+```
+
+
+
+
+
+
+
+```{r}
+#Smokers vs. Charges
+B0 = summary(mod11)$coef[1]
+B1 = summary(mod11)$coef[2]
+
+pi = logit(B0, B1, Insurance$charges)
+head(pi)
+
+odds = pi/(1-pi)
+head(odds)
+
+plot(log(odds)~Insurance$charges)
+abline(B0,B1)
+
+
+
+for(j in 5:20){emplogitplot1(smoker~charges, data = Insurance, ngroups=j, main=j)}
+
+
+#Mode 2: Smokers vs BMI
+
+b0 = summary(mod22)$coef[1]
+b1 = summary(mod22)$coef[2]
+Pi = logit(b0, b1, Insurance$bmi)
+head(Pi)
+
+Odds = Pi/(1-Pi)
+head(Odds)
+
+plot(log(Odds)~Insurance$bmi)
+abline(b0,b1)
+
+for(j in 5:20){emplogitplot1(smoker~bmi, data=Insurance, ngroups=j, main=j)}
+```
+
+**If we compare the logit plots of smoking to charges and smoking to BMI, we can see that the BMI plot has a bit more linearity. But this is still somewhat problematic because it's assumes relationships are linear (at the expense of exponential or other types of relationships). **
+
+
+
+
+
+```{r}
+#comparing p-values of Smoking vs. Charges and Smoking vs. BMI
+
+#D1: "The null hypothesis states that smoking has no effect and no relationship with insurance charges (cost). The alternative hypothesis states that smoking does have a correlation with increased insurance charges. Since our p-values are basically 0 (>0.05), we can reject the null hypothesis and that there is sufficient evidence to accept the alternative hypothesis"
+#D2: "Our p-values here are quite high, much higher than 0.05, so we must accept the null hypothesis that smoking has no relationship with BMI and reject the alternative hypothesis that smoking does have a correlation with BMI."
+
+#F1:"***P-value is <2.2e-16, much less than 0.05/basically 0, so we can reject the null hypothesis and accept the alternative hypothesis that there is a relationship with smoking against insurance charges.** "
+anova(mod11, test="Chisq")
+
+
+
+#F2: ***P-value of smokers against BMI = 0.8909. Greater than 0.05, so we can accept the null hypothesis that there is no significant relationship with smoking and BMI.***" 
+anova(mod22, test="Chisq")
+```
+*Overall, we can see that our first model (smoking vs. insurance charges) has a stronger overall relationship than smoking and BMI, based off of the p-values. Thus, we can probably say that the first model is more "effective" than the second model.* 

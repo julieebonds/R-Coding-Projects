@@ -1,0 +1,141 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#Authors: Julie Bonds, Rina Deka
+
+#STOR 455 Homework Assignment #7, Spring 2020
+
+#Link to data: https://www.kaggle.com/mirichoi0218/insurance
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(car)
+library(mosaic)
+library(Stat2Data)
+library(dplyr)
+library(ggplot2)
+library(bestglm)
+library(tidyverse)
+```
+
+```{r}
+#insurance <- read_csv("~/STOR 455 McLean/STOR 455/STOR  455 Data/insurance.csv")
+insurance <- read_csv("~/insurance.csv")
+View(insurance)
+```
+
+```{r}
+Insurance <- insurance %>% transmute(age, sex=ifelse(sex=="male",0,1), bmi, children, smoker=ifelse(smoker=="no",0,1),region, charges)
+#1=Female, 0=male
+#1=Yes=Smoker, 0=No=Non-smoker
+data(Insurance)
+head(Insurance)
+```
+
+#Part A 
+
+##Construct a model using at least three predictors and the same response variable from assignment #6 
+
+
+```{r}
+
+mod33 <- glm(smoker~charges+bmi+age, data = Insurance, family = "binomial")
+summary(mod33)
+```
+
+#Part B
+
+##Compute the G-statistic and use it to test the effectiveness of your model. Include hypotheses and a conlcusion.
+
+
+```{r}
+anova(mod33, test="Chisq")
+# 1-pchisq(1356.63-311.98,3)
+
+G = mod33$null.deviance - mod33$deviance
+Gdf = mod33$df.null - mod33$df.residual
+
+1-pchisq(G, Gdf)
+
+
+```
+
+**The null hypothesis states that our model it not significant when it comes to predicting the likelihood that a person smokes. The alternative hypothesis states that our model is significant when it comes to predicting the likelihood that a person smokes. Because the p-value we found using the chi-squared test is zero, we reject the null hypothesis and say that our model is significant when it comes to predicting the likelihood that a person smokes**
+
+
+
+#Part C
+
+##Test the effectiveness of each predictor in the model. Inlcude hypotheses and conlcusions.
+
+```{r}
+summary(mod33)
+```
+
+
+**The null hypothesis states that our predictor charges is not significant when it comes to predicting the response variable of whether or not the person smokes. The alternate hypothesis states that our predictor charges is significant when it comes to predicting whether or not the person smokes. Since the p-value for charges is essentially zero, we can reject the null hypothesis and say that charges is significant when it comes to predicting whether or not a person smokes**
+
+**The null hypothesis states that our predictor bmi is not significant when it comes to predicting the response variable of whether or not the person smokes. The alternate hypothesis states that our predictor bmi is significant when it comes to predicting whether or not the person smokes. Since the p-value for bmi is very small, we can reject the null hypothesis and say that bmi is significant when it comes to predicting whether or not a person smokes**
+
+**The null hypothesis states that our predictor age is not significant when it comes to predicting the response variable of whether or not the person smokes. The alternate hypothesis states that our predictor age is significant when it comes to predicting whether or not the person smokes. Since the p-value for age is very small, we can reject the null hypothesis and say that age is significant when it comes to predicting whether or not a person smokes**
+
+
+
+#Part D
+
+##Test the effectiveness of this model with multiple predictors compared to each of your two models with a single predictor. Are there significant improvements? Include hypotheses and a conlcusion.
+
+```{r}
+
+mod11 <- glm(smoker~charges, data = Insurance, family = "binomial")
+anova(mod11,mod33, test = "Chisq")
+```
+
+**The null hypothesis states that our model with several predictors (mod33) is no more significant than our model with only charges as a predictor (mod11) when it comes to predicting whether or not a person smokes. The alternative hypothesis is that mod33 is more significant than mod11 when it comes to predicting whether or not a person smokes. As our p-values is essentially zero, we can reject the null hypothesis and say that mod33 is more significant than mod11 when it comes to predicting whether or not a person smokes**
+
+**The G-statistic is significantly higher for our model with with multiple predictors than for our original model with only charges as a predictor. However, when comparing the two the original model still did fairly well for only having one predictor**
+
+```{r}
+
+mod22 <- glm(smoker~bmi, data = Insurance, family = "binomial")
+
+anova(mod22, mod33, test = "Chisq")
+
+```
+
+**The null hypothesis states that our model with several predictors (mod33) is no more significant than our model with only bmi as a predictor (mod22) when it comes to predicting whether or not a person smokes. The alternative hypothesis is that mod33 is more significant than mod22 when it comes to predicting whether or not a person smokes. As our p-values is essentially zero, we can reject the null hypothesis and say that mod33 is more significant than mod22 when it comes to predicting whether or not a person smokes**
+
+**The G-statistic is significantly higher for our model with multiple predictors than for our original model with only bmi as a predictor. There is a major improvement when moving from the original model with only bmi to the new model with multiple predictors. The improvement here is much larger than when comparing mod11 to mod33**
+
+
+
+#Part E
+
+##Use the bestglm function to determine the best model to predict your response with your given set of predictors.
+
+
+```{r}
+
+Insurance$region = unclass(factor(Insurance$region))
+Insurance$region = as.numeric(Insurance$region)
+#1 = northeast , 2 = northwest , 3 = southeast ,4 = southwest
+
+InsuranceNew <- data.frame(Insurance)
+InsuranceReorder = InsuranceNew[,c(1:4,6:7,5)] #reorder columns with response last
+head(InsuranceReorder)
+```
+
+```{r}
+bestglm(InsuranceReorder, family=binomial)
+
+InsuranceReorder.bestglm = bestglm(InsuranceReorder, family=binomial)
+InsuranceReorder.bestglm$BestModels
+```
+
+**Our BIC values are very close so all 5 models would have a similar success rate, however the best model listed uses age, bmi, and charges to predict the likelihood that a person smokes. These three predictors are also included in all 5 of the best models, and are coincidentally the predictors we used for this assignment. However, all six potential predictors are included at least once in one of the best five models, so they are likely all significant when it comes to predicting whether or not a person smokes**
