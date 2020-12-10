@@ -1,0 +1,269 @@
+
+---
+title: 'STOR 455 Exam #2 Julie Bonds'
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r warning=FALSE, message=FALSE}
+library(readr)
+library(bestglm)
+library(mosaic)
+library(car)
+library(Stat2Data)
+library(dplyr)
+library(MASS)
+library(tidyverse)
+
+
+ShowSubsets=function(regout){
+  z=summary(regout)
+  q=as.data.frame(z$outmat)
+  q$Rsq=round(z$rsq*100,2)
+  q$adjRsq=round(z$adjr2*100,2)
+  q$Cp=round(z$cp,2)
+  return(q)
+}
+
+SpeedDating = read_csv("http://mclean.web.unc.edu/files/2020/04/SpeedDating.csv")
+
+SpeedDatingM = read_csv("http://mclean.web.unc.edu/files/2020/04/SpeedDatingM.csv")
+SpeedDatingF = read_csv("http://mclean.web.unc.edu/files/2020/04/SpeedDatingF.csv")
+```
+
+
+#1)
+
+```{r}
+head(SpeedDating)
+```
+
+```{r}
+SpeedDating$AgeDifference = (SpeedDating$AgeM-SpeedDating$AgeF)
+head(SpeedDating)
+```
+
+```{r}
+mod1 <- glm(DecisionM~AgeDifference, data = SpeedDating, family = "binomial")
+```
+
+
+#2)
+
+```{r}
+logit = function(B0, B1, x)
+  {
+    exp(B0+B1*x)/(1+exp(B0+B1*x))
+  }
+
+
+B0 = summary(mod1)$coef[1]
+B1 = summary(mod1)$coef[2]
+
+
+
+plot(DecisionM~AgeDifference,data=SpeedDating)
+curve(logit(B0, B1, x),add=TRUE, col="red")
+```
+
+```{r}
+plot(jitter(DecisionM, amount = 0.1)~AgeDifference,data=SpeedDating)
+curve(logit(B0, B1, x),add=TRUE, col="red")
+```
+
+**Based on this plot, men have approximately a 50% chance of wanting to go on another date with a female when the age difference is right around 0 - when they are right around the same age.**
+
+
+#3)
+
+```{r}
+exp(confint(mod1, level = 0.95))
+
+(exp(confint(mod1, level = 0.95)))^5
+```
+
+**For each five years younger than the man a woman is, we are 95% confident that the odds that the man wants to go on another date with her are between 0.4246048 and 0.956091 percent of the odds of a woman who is five years older than her. The fact that both values are less than one indicates that the odds are going down as the woman gets younger and younger (As the AgeDifference variable increases) than the man. This indicates that as the man gets increasingly older than the woman, he is less and less likely to want a second date.**
+
+#4)
+
+```{r}
+mod2 <- glm(DecisionM~AgeDifference+RaceM+AgeDifference*RaceM, data = SpeedDating, family = "binomial")
+
+anova(mod1, mod2, test = "Chisq")
+```
+
+**The null hypothesis states that mod2 with the predictors "AgeDifference", "RaceM", and the interaction between the two is no more significant/effective when it comes to predicting "DecisionM" (The decision of the male) than mod1 with just AgeDifference as a predictor. The alternate hypothesis states that mod2 is more significant/effective than mod1 when it comes to predicting DecisionM. Because the p-value of the anova test is fairly high (greater than the alpha value 0.05), we accept the null hypothesis which suggests that mod2 is not more significant/effective than our first model mod1 for predicting whether or not the man would like another date (DecisionM).**
+
+#5)
+```{r}
+head(SpeedDating)
+```
+
+```{r}
+#SpeedDating.1 = within(SpeedDating,{DecisionF = NULL LikeM = NULL})
+SpeedDating.1 = subset(SpeedDating, select = c(1,3,5,11,13,15,17,19,21,23))
+head(SpeedDating.1)
+```
+```{r}
+SpeedDatingReorder = SpeedDating.1[,c(2:10,1)] #with response last
+SpeedDatingReorder2 <- data.frame(SpeedDatingReorder)
+head(SpeedDatingReorder)
+```
+
+```{r}
+bestglm(SpeedDatingReorder2, family=binomial)
+
+SpeedDatingReorder2.bestglm = bestglm(SpeedDatingReorder2, family=binomial)
+SpeedDatingReorder2.bestglm$BestModels
+```
+
+**The model with the lowest BIC used the predictors LikeM, PartnerYesM, AttractiveM, SincereM, FunM, and AgeDifference. All five of the best models had very close BICs. IntelligentM, AmbitiousM, and SharedInterestsM were the variable missing from the top model. The first was included in one of the top five models, while the following two were included in none of the top five models**
+
+```{r}
+#model using predictors from bestglm result with the lowest BIC
+SpeedDBestglm = glm(DecisionM~LikeM+PartnerYesM+AttractiveM+SincereM+FunM+AgeDifference, data = SpeedDatingReorder2, family = binomial)
+
+```
+
+
+
+```{r}
+some_random_dude = data.frame(
+  LikeM = 7,
+  PartnerYesM = 7,
+  AttractiveM = 7,
+  SincereM = 7,
+  FunM = 7,
+  AgeDifference = 0
+)
+
+predict(SpeedDBestglm, some_random_dude)
+
+odds = exp(predict(SpeedDBestglm, some_random_dude))
+
+odds/(1+odds)
+```
+
+**This model predicts that there is approximately an 84% probabilty that the man would want to go on another date with a woman with the given specifications**
+
+
+
+
+#6)
+
+```{r}
+head(SpeedDatingF)
+```
+
+
+```{r}
+
+#regsubsets
+
+regsubsets2A=regsubsets(Like~., data=SpeedDatingF)
+ShowSubsets(regsubsets2A)
+
+```
+
+
+
+
+```{r}
+#step
+
+none = lm(Like~1, data=SpeedDatingF)
+full = lm(Like~., data=SpeedDatingF)
+MSE = (summary(full)$sigma)^2
+
+step(none,scope=list(upper=full),scale=MSE, trace=0)
+```
+
+
+
+```{r}
+#forward
+
+
+step(none,scope=list(upper=full),scale=MSE, direction="forward", trace=0)
+```
+
+
+```{r}
+#backward
+
+step(full,scale=MSE, trace=0)
+```
+
+```{r}
+#model for regsubsets
+
+RegMod = lm(Like ~ SharedInterests + Fun + Intelligent + Sincere + Attractive, data = SpeedDatingF)
+
+#model for step
+
+StepMod = lm(Like ~ Fun + SharedInterests + Attractive + Intelligent + 
+    Sincere, data = SpeedDatingF)
+
+#model for forward
+
+ForwardMod = lm(Like ~ Fun + SharedInterests + Attractive + Intelligent + 
+    Sincere, data = SpeedDatingF)
+
+
+#model for backward
+
+BackwardMod = lm(Like ~ Attractive + Sincere + Intelligent + Fun + 
+    SharedInterests, data = SpeedDatingF)
+
+
+#All four methods returned the same five predictors for the most effective model. The new model is listed below:
+
+NewModF = lm(Like ~ Attractive + Sincere + Intelligent + Fun + 
+    SharedInterests, data = SpeedDatingF)
+
+summary(NewModF)
+
+```
+
+
+
+```{r}
+plot(NewModF)
+```
+
+```{r}
+hist(NewModF$residuals)
+```
+
+**The residuals vs. fitted plot appears mostly linear, with only a very slight curve to it. The constant variance condition does not seem to be satisfied because residuals are more varied on the left side of the graph. The zero mean condition appears satisfied, as residuals seem to be distributed evenly above and below the line. The normality of residuals condition is almost but not quite satisfied, as the histogram of residuals skews just slightly to the left and has an outlier on the far right side of the graph. The qqplot is also fairly linear with exception of the ends.**
+
+
+#7) 
+
+```{r}
+
+prediction = predict(NewModF, SpeedDatingM)
+
+holdoutResid = SpeedDatingM$Like - prediction
+
+mean(holdoutResid)
+sd(holdoutResid)
+```
+```{r}
+hist(holdoutResid)
+```
+```{r}
+summary(NewModF)
+```
+
+```{r}
+cvCorr = cor(prediction, SpeedDatingM$Like)
+cvCorr
+(cvCorr)^2
+
+summary(NewModF)$r.squared - cvCorr^2
+```
+
+**At approximatly 0.0889, the holdout residual mean is relatively close to zero. At approximately 1.1414, the holdout residual standard deviation is very close to the residual standard error from our original model.The holdout residual histogram has a normal distribution shape but has a fairly heavy left-skew to go along with it. The cross-validation correlation is approximately 0.736 - which means that the model does not predict the new data particularly well, however cvCorr squared is not that far off (as we see with the shrinkage) from the adjusted r^squared of the original model. Shrinkage is right around 0.07, which means that our model is about as good at predicting SpeedDatingM as the data it was designed for - SpeedDatingF, but could be better.**
